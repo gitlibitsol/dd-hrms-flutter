@@ -28,11 +28,12 @@ class _QrCodeScannerState extends State<QrCodeScanner> {
   /// 🔹 Show message (Snackbar)
   void _showMessage(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 
-  /// 🔹 Get current location with permissions
+  /// 🔹 Get current location with safe fallback
   Future<void> _getLocation() async {
     setState(() => _loadingLocation = true);
 
@@ -63,30 +64,45 @@ class _QrCodeScannerState extends State<QrCodeScanner> {
         return;
       }
 
-      // Get position
-      Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+      } catch (_) {
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position == null) {
+        _showMessage("Could not fetch location");
+        setState(() => _loadingLocation = false);
+        return;
+      }
 
       setState(() {
-        userLatitude = position.latitude;
+        userLatitude = position!.latitude;
         userLongitude = position.longitude;
       });
 
       // Get address
-      List<Placemark> placemarks =
-      await placemarkFromCoordinates(position.latitude, position.longitude);
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        setState(() {
-          address =
-          "${place.street}, ${place.locality}, ${place.administrativeArea}, ${place.country}, ${place.postalCode}";
-        });
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+            position.latitude, position.longitude);
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks[0];
+          setState(() {
+            address =
+            "${place.street}, ${place.locality}, ${place.administrativeArea}, ${place.country}, ${place.postalCode}";
+          });
+        }
+      } catch (_) {
+        _showMessage("Unable to fetch address");
       }
     } catch (e) {
       _showMessage("Error fetching location: $e");
     }
 
-    setState(() => _loadingLocation = false);
+    if (mounted) setState(() => _loadingLocation = false);
   }
 
   /// 🔹 Punch Dialog
@@ -99,8 +115,8 @@ class _QrCodeScannerState extends State<QrCodeScanner> {
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text("Select Punch Option",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          content:
-          Text("Please select Punch In or Punch Out before scanning QR code."),
+          content: Text(
+              "Please select Punch In or Punch Out before scanning QR code."),
           actions: [
             TextButton(
               onPressed: () {
@@ -136,7 +152,11 @@ class _QrCodeScannerState extends State<QrCodeScanner> {
 
         // ✅ Check geofence with API
         await _getStoreLocationAndCheck(qrCode, punchType);
+      } else {
+        _showMessage("No QR code detected");
       }
+    } on FormatException {
+      _showMessage("Scan cancelled");
     } catch (e) {
       _showMessage("QR Scan failed: $e");
     }
@@ -159,6 +179,8 @@ class _QrCodeScannerState extends State<QrCodeScanner> {
             _showMessage("Outside geofence area");
           }
         }
+      } else {
+        _showMessage("Invalid response from server");
       }
     } catch (e) {
       _showMessage("Error fetching store location: $e");
@@ -188,7 +210,7 @@ class _QrCodeScannerState extends State<QrCodeScanner> {
   /// 🔹 Save Data
   Future<void> _storeData(String qrCode, String punchType) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String scanTime = DateTime.now().toString();
+    String scanTime = DateTime.now().toIso8601String();
 
     await prefs.setString('qrCodeId', qrCode);
     await prefs.setString('scantime', scanTime);
@@ -215,56 +237,58 @@ class _QrCodeScannerState extends State<QrCodeScanner> {
         backgroundColor: Colors.blueAccent,
         iconTheme: IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(Icons.qr_code_scanner, size: 80, color: Colors.blueAccent),
-            SizedBox(height: 16),
-            Text(
-              'Tap the button below to scan a QR code.',
-              style: TextStyle(fontSize: 16, color: Colors.black87),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 24),
-
-            // 🔹 Scan Button
-            ElevatedButton.icon(
-              icon: Icon(Icons.qr_code),
-              label: Text('Scan QR Code'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                textStyle:
-                TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Icon(Icons.qr_code_scanner, size: 80, color: Colors.blueAccent),
+              SizedBox(height: 16),
+              Text(
+                'Tap the button below to scan a QR code.',
+                style: TextStyle(fontSize: 16, color: Colors.black87),
+                textAlign: TextAlign.center,
               ),
-              onPressed: _loadingLocation ? null : _showPunchDialog,
-            ),
+              SizedBox(height: 24),
 
-            SizedBox(height: 30),
+              // 🔹 Scan Button
+              ElevatedButton.icon(
+                icon: Icon(Icons.qr_code),
+                label: Text('Scan QR Code'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  textStyle:
+                  TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: _loadingLocation ? null : _showPunchDialog,
+              ),
 
-            // 🔹 Info Cards
-            _buildInfoCard(
-              title: 'Scanned QR Code',
-              value: qrCode.isEmpty ? 'No code scanned yet' : qrCode,
-              icon: Icons.code,
-            ),
-            _buildInfoCard(
-              title: 'Current Address',
-              value: _loadingLocation ? 'Fetching location...' : address,
-              icon: Icons.location_on,
-            ),
-            _buildInfoCard(
-              title: 'Coordinates',
-              value: _loadingLocation
-                  ? 'Fetching...'
-                  : 'Lat: $userLatitude\nLng: $userLongitude',
-              icon: Icons.my_location,
-            ),
-          ],
+              SizedBox(height: 30),
+
+              // 🔹 Info Cards
+              _buildInfoCard(
+                title: 'Scanned QR Code',
+                value: qrCode.isEmpty ? 'No code scanned yet' : qrCode,
+                icon: Icons.code,
+              ),
+              _buildInfoCard(
+                title: 'Current Address',
+                value: _loadingLocation ? 'Fetching location...' : address,
+                icon: Icons.location_on,
+              ),
+              _buildInfoCard(
+                title: 'Coordinates',
+                value: _loadingLocation
+                    ? 'Fetching...'
+                    : 'Lat: $userLatitude\nLng: $userLongitude',
+                icon: Icons.my_location,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -281,8 +305,7 @@ class _QrCodeScannerState extends State<QrCodeScanner> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-              color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
         ],
       ),
       child: Row(

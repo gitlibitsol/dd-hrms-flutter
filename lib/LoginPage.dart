@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -26,23 +27,17 @@ class _LoginPageState extends State<LoginPage> {
       final status = loginResponse.statusCode;
       final message = loginResponse.message;
 
-      if (status == '200') {
-        if (loginResponse.empLogin != null) {
-          await _saveUserData(loginResponse.empLogin!);
-          if (!mounted) return;
-          _navigateToHomePage();
-        } else {
-          _showToast("Invalid login data");
-        }
+      if (status == '200' && loginResponse.empLogin != null) {
+        await _saveUserData(loginResponse.empLogin!);
+        if (!mounted) return;
+        _navigateToHomePage();
       } else {
-        _showToast(message);
+        _showMessage(message.isNotEmpty ? message : "Invalid login data");
       }
     } catch (e) {
-      _showToast('Something went wrong. Please try again.');
+      _showMessage('Something went wrong. Please try again.');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -60,21 +55,41 @@ class _LoginPageState extends State<LoginPage> {
   void _navigateToHomePage() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => HomePage()),
+      MaterialPageRoute(builder: (_) => const HomePage()),
     );
   }
 
-  void _showToast(String message) {
+  void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.poppins(color: Colors.white)),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      // iOS style popup
+      showCupertinoDialog(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text("Login Info"),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Android style snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message, style: GoogleFonts.poppins(color: Colors.white)),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   @override
@@ -85,6 +100,8 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context).size;
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(), // dismiss keyboard
       child: Scaffold(
@@ -100,18 +117,21 @@ class _LoginPageState extends State<LoginPage> {
             ),
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20.0),
+                padding: EdgeInsets.symmetric(
+                  horizontal: mq.width * 0.08,
+                  vertical: mq.height * 0.04,
+                ),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 400),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Image.asset('assets/images/logo.jpg', width: 120, height: 120),
-                      const SizedBox(height: 20),
+                      Image.asset('assets/images/logo.jpg', width: mq.width * 0.3),
+                      SizedBox(height: mq.height * 0.03),
                       Text(
                         'Welcome!',
                         style: GoogleFonts.poppins(
-                          fontSize: 28,
+                          fontSize: mq.width * 0.07,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFF2D2C60),
                         ),
@@ -120,13 +140,16 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 10),
                       Text(
                         'Please enter your mobile number to continue.',
-                        style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[700]),
+                        style: GoogleFonts.poppins(
+                          fontSize: mq.width * 0.04,
+                          color: Colors.grey[700],
+                        ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 30),
+                      SizedBox(height: mq.height * 0.04),
                       TextField(
                         controller: _mobileController,
-                        keyboardType: TextInputType.number,
+                        keyboardType: TextInputType.phone,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(10),
@@ -142,7 +165,7 @@ class _LoginPageState extends State<LoginPage> {
                           prefixIcon: const Icon(Icons.phone, color: Color(0xFF2D2C60)),
                         ),
                       ),
-                      const SizedBox(height: 25),
+                      SizedBox(height: mq.height * 0.03),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -151,9 +174,9 @@ class _LoginPageState extends State<LoginPage> {
                               : () {
                             final mobile = _mobileController.text.trim();
                             if (mobile.isEmpty) {
-                              _showToast('Please enter your mobile number');
+                              _showMessage('Please enter your mobile number');
                             } else if (mobile.length != 10) {
-                              _showToast('Please enter a valid 10-digit mobile number');
+                              _showMessage('Please enter a valid 10-digit mobile number');
                             } else {
                               _login(mobile);
                             }

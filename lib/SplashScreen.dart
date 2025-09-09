@@ -50,16 +50,24 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _navigateToNextScreen() async {
     await Future.delayed(const Duration(seconds: 3));
 
-    final prefs = await SharedPreferences.getInstance();
-    final isUserLoggedIn = prefs.getBool('userlogin') ?? false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isUserLoggedIn = prefs.getBool('userlogin') ?? false;
 
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => isUserLoggedIn ? HomePage() : LoginPage(),
-      ),
-    );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => isUserLoggedIn ? const HomePage() : const LoginPage(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+    }
   }
 
   @override
@@ -69,11 +77,9 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Widget _buildLoader() {
-    // ✅ Android me Circular, iOS me Cupertino loader
-    if (Platform.isIOS) {
-      return const CupertinoActivityIndicator(radius: 14);
-    }
-    return const CircularProgressIndicator(
+    return Platform.isIOS
+        ? const CupertinoActivityIndicator(radius: 14)
+        : const CircularProgressIndicator(
       color: Colors.blueAccent,
       strokeWidth: 2.5,
     );
@@ -81,9 +87,14 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      body: SafeArea(   // ✅ notch safe
+      body: SafeArea(
         child: Container(
+          width: double.infinity,
+          height: double.infinity,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [Colors.blue.shade300, Colors.white],
@@ -92,52 +103,60 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
           child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+            child: SingleChildScrollView( // ✅ overflow safe
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(25),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        padding: EdgeInsets.all(screenWidth * 0.06),
+                        child: Image.asset(
+                          logoPath,
+                          width: screenWidth * 0.35,
+                          height: screenWidth * 0.35,
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                      padding: const EdgeInsets.all(24),
-                      child: Image.asset(logoPath, width: 140, height: 140),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Welcome to DD-HRMS',
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                  SizedBox(height: screenHeight * 0.03),
+                  Text(
+                    'Welcome to DD-HRMS',
+                    style: GoogleFonts.poppins(
+                      fontSize: screenWidth * 0.06,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your trusted partner in quality.',
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    color: Colors.grey[700],
+                  SizedBox(height: screenHeight * 0.01),
+                  Text(
+                    'Your trusted partner in quality.',
+                    style: GoogleFonts.roboto(
+                      fontSize: screenWidth * 0.04,
+                      color: Colors.grey[700],
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                _buildLoader(),
-              ],
+                  SizedBox(height: screenHeight * 0.04),
+                  _buildLoader(),
+                ],
+              ),
             ),
           ),
         ),
