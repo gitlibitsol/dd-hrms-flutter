@@ -26,10 +26,10 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
 
   /// 🔹 Step 1: Check Location Permission
   Future<void> _checkPermissionsAndLocation() async {
-    final status = await Permission.locationWhenInUse.request();
+    var status = await Permission.locationWhenInUse.request();
 
     if (status.isGranted) {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         _showEnableLocationDialog();
       } else {
@@ -47,44 +47,32 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
     setState(() => _isLoading = true);
 
     try {
-      Position? position;
-      try {
-        position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        );
-      } catch (_) {
-        position = await Geolocator.getLastKnownPosition();
-      }
-
-      if (position == null) {
-        _showSnackbar("Unable to fetch location. Please try again.");
-        setState(() => _isLoading = false);
-        return;
-      }
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
 
       List<Placemark> placemarks =
       await placemarkFromCoordinates(position.latitude, position.longitude);
+      Placemark place = placemarks.first;
 
-      final place = placemarks.isNotEmpty ? placemarks.first : null;
       setState(() {
-        _currentAddress = place != null
-            ? "${place.street}, ${place.locality}, ${place.administrativeArea}, ${place.country}"
-            : "Address unavailable";
+        _currentAddress =
+        "${place.street}, ${place.locality}, ${place.administrativeArea}, ${place.country}";
       });
 
       await _saveLocationData(_currentAddress, position);
     } catch (e) {
-      _showSnackbar("Unable to fetch location. Error: $e");
+      _showSnackbar("Unable to fetch location. Please try again.");
     }
 
-    if (mounted) setState(() => _isLoading = false);
+    setState(() => _isLoading = false);
   }
 
   Future<void> _saveLocationData(String address, Position position) async {
-    final prefs = await SharedPreferences.getInstance();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('address', address);
-    await prefs.setDouble('latitude', position.latitude);
-    await prefs.setDouble('longitude', position.longitude);
+    await prefs.setString('latitude', position.latitude.toString());
+    await prefs.setString('longitude', position.longitude.toString());
   }
 
   /// 🔹 Step 3: Submit Attendance
@@ -97,7 +85,7 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('location', _locationController.text);
     await prefs.setString('purpose', _purposeController.text);
     await prefs.setString('workType', _workType!);
@@ -111,17 +99,16 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Punch Type"),
-        content:
-        const Text("Choose Punch In or Punch Out before scanning QR code."),
+        title: Text("Punch Type"),
+        content: Text("Choose Punch In or Punch Out before scanning QR code."),
         actions: [
           TextButton(
             onPressed: () => _scanQRCodeWithPunch("In"),
-            child: const Text("Punch In"),
+            child: Text("Punch In"),
           ),
           TextButton(
             onPressed: () => _scanQRCodeWithPunch("Out"),
-            child: const Text("Punch Out"),
+            child: Text("Punch Out"),
           ),
         ],
       ),
@@ -129,19 +116,17 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
   }
 
   /// 🔹 Step 5: Save Punch Type
-  Future<void> _scanQRCodeWithPunch(String punchType) async {
+  void _scanQRCodeWithPunch(String punchType) async {
     Navigator.pop(context);
-    final prefs = await SharedPreferences.getInstance();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('punchType', punchType);
 
     _showSnackbar("Selected Punch: $punchType");
 
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => CameraAttendancePage2()),
-      );
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => CameraAttendancePage2()),
+    );
   }
 
   /// 🔹 Dialogs
@@ -149,18 +134,16 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Enable Location"),
-        content: const Text("Your GPS is OFF. Please enable location services."),
+        title: Text("Enable Location"),
+        content: Text("Your GPS is OFF. Please enable location services."),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text("Cancel")),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await Geolocator.openLocationSettings();
             },
-            child: const Text("Open Settings"),
+            child: Text("Open Settings"),
           ),
         ],
       ),
@@ -171,19 +154,16 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Permission Required"),
-        content: const Text(
-            "Location permission is permanently denied. Please enable it from settings."),
+        title: Text("Permission Required"),
+        content: Text("Location permission is permanently denied. Please enable it from settings."),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text("Cancel")),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await openAppSettings();
             },
-            child: const Text("Open Settings"),
+            child: Text("Open Settings"),
           ),
         ],
       ),
@@ -192,7 +172,6 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
 
   /// 🔹 Snackbar
   void _showSnackbar(String message) {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
@@ -200,40 +179,36 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mark Attendance')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Mark Attendance",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
+      appBar: AppBar(title: Text('Mark Attendance')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Mark Attendance",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            SizedBox(height: 20),
 
-              _buildTextField(_locationController, "Location"),
-              const SizedBox(height: 16),
+            _buildTextField(_locationController, "Location"),
+            SizedBox(height: 16),
 
-              _buildTextField(_purposeController, "Purpose"),
-              const SizedBox(height: 16),
+            _buildTextField(_purposeController, "Purpose"),
+            SizedBox(height: 16),
 
-              _buildWorkTypeDropdown(),
-              const SizedBox(height: 20),
+            _buildWorkTypeDropdown(),
+            SizedBox(height: 20),
 
-              Center(child: _buildGetLocationButton()),
-              const SizedBox(height: 20),
+            Center(child: _buildGetLocationButton()),
+            SizedBox(height: 20),
 
-              Center(child: _buildSubmitButton()),
-              const SizedBox(height: 30),
+            Center(child: _buildSubmitButton()),
+            SizedBox(height: 30),
 
-              const Text("📍 Current Address:",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Text(_currentAddress,
-                  style:
-                  TextStyle(fontSize: 15, color: Colors.grey.shade800)),
-            ],
-          ),
+            Text("📍 Current Address:",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            SizedBox(height: 8),
+            Text(_currentAddress, style: TextStyle(fontSize: 15, color: Colors.grey[800])),
+          ],
         ),
       ),
     );
@@ -259,10 +234,9 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       value: _workType,
-      items: ['WFH', 'OD']
-          .map((type) =>
-          DropdownMenuItem<String>(value: type, child: Text(type)))
-          .toList(),
+      items: ['WFH', 'OD'].map((type) {
+        return DropdownMenuItem<String>(value: type, child: Text(type));
+      }).toList(),
       onChanged: (value) => setState(() => _workType = value),
     );
   }
@@ -270,15 +244,11 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
   Widget _buildGetLocationButton() {
     return ElevatedButton.icon(
       onPressed: _isLoading ? null : _getCurrentLocation,
-      icon: const Icon(Icons.location_on),
+      icon: Icon(Icons.location_on),
       label: _isLoading
-          ? const SizedBox(
-        height: 18,
-        width: 18,
-        child: CircularProgressIndicator(
-            strokeWidth: 2, color: Colors.white),
-      )
-          : const Text("Get Current Location"),
+          ? SizedBox(
+          height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : Text("Get Current Location"),
       style: ElevatedButton.styleFrom(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -288,7 +258,7 @@ class _MarkAttendancePageState extends State<MarkAttendancePage> {
   Widget _buildSubmitButton() {
     return ElevatedButton(
       onPressed: _submitAttendance,
-      child: const Text("Submit"),
+      child: Text("Submit"),
       style: ElevatedButton.styleFrom(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
