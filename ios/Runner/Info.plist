@@ -4,7 +4,7 @@
 <dict>
 <!-- Camera access -->
 <key>NSCameraUsageDescription</key>
-<string>This app needs camera access to scan QR codes and take pictures.</string>
+<string>This app needs camera access to scan QR codes and take pictures and access to capture attendance photo.</string>
 
 <!-- Photo Library / Storage access (if you save images) -->
 <key>NSPhotoLibraryUsageDescription</key>

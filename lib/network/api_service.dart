@@ -9,7 +9,7 @@ import '../Model/login_model.dart';
 
 class ApiService {
 
-  static const String baseUrl = 'http://35.200.253.184/dawadostapi/';
+  static const String baseUrl = 'http://52.66.139.134/dawadostapi/';
 
   Future<LoginResponse> login(String mobileNo) async {
     try {
@@ -96,6 +96,31 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> signUp(String name, String mobileNo, String email) async {
+    try {
+      final uri = Uri.parse('${baseUrl}api/EmployeeSignup')
+          .replace(queryParameters: {
+        "name": name,
+        "mobileNo": mobileNo,
+        "emailId": email,
+      });
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to signup: ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      throw Exception('Signup API error: $e');
+    }
+  }
+
+
   /// ✅ Get Store Location API (with query param like Retrofit)
   Future<StoreLocationResponse> getStoreLocation(String storeId) async {
     try {
@@ -116,5 +141,8 @@ class ApiService {
       throw Exception('Error fetching store location: $e');
     }
   }
+
+
+
 
 }

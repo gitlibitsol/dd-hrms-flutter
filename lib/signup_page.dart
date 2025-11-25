@@ -12,6 +12,7 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _mobileController = TextEditingController();
@@ -215,7 +216,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             ),
                             children: [
                               TextSpan(
-                                text: "Go Login",
+                                text: "Login",
                                 style: GoogleFonts.poppins(
                                   color: const Color(0xFF2D2C60),
                                   fontWeight: FontWeight.bold,
@@ -236,4 +237,5 @@ class _SignUpPageState extends State<SignUpPage> {
       ),
     );
   }
+
 }

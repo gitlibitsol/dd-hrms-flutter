@@ -56,8 +56,10 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
         savedQrCodeId: prefs.getString('qrCodeId'),
         savedCompanyID: prefs.getString('companyID'),
         savedAddress: prefs.getString('address'),
-        savedLatitude: prefs.getDouble('latitude')?.toString(),
-        savedLongitude: prefs.getDouble('longitude')?.toString(),
+        // savedLatitude: prefs.getDouble('latitude')?.toString(),
+        // savedLongitude: prefs.getDouble('longitude')?.toString(),
+        savedLatitude: prefs.getString('latitude'),
+        savedLongitude: prefs.getString('longitude'),
         savedPunchType: prefs.getString('punchType'),
       );
     } catch (e) {

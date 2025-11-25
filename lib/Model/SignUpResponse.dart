@@ -3,16 +3,13 @@ class SignupResponse {
   final String statusCode;
   final String status;
   final String message;
-  final String? errorField;
-  final String? apiType;
+
 
   SignupResponse({
     this.empLogin,
     required this.statusCode,
     required this.status,
     required this.message,
-    this.errorField,
-    this.apiType,
   });
 
   factory SignupResponse.fromJson(Map<String, dynamic> json) {
@@ -22,8 +19,6 @@ class SignupResponse {
       statusCode: json['Status_Code']?.toString() ?? "",
       status: json['Status'] ?? "",
       message: json['Message'] ?? "",
-      errorField: json['Error_Field'] ?? "",
-      apiType: json['Api_Type'] ?? "",
     );
   }
 }
