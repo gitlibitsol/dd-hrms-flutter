@@ -165,6 +165,16 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
+
+                          children: [
+                            TextSpan(
+                              text: "Go Sign Up",
+                              style: GoogleFonts.poppins(
+                                color: const Color(0xFF2D2C60),
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+
                           child: _isLoading
                               ? const SizedBox(
                             width: 24,
@@ -172,13 +182,16 @@ class _LoginPageState extends State<LoginPage> {
                             child: CircularProgressIndicator(
                               color: Colors.white,
                               strokeWidth: 2.5,
+
                             ),
                           )
                               : Text('Login', style: GoogleFonts.poppins(color: Colors.white)),
                         ),
                       ),
-                    ],
-                  ),
+
+                    ),
+                  ],
+
                 ),
               ),
             ),
