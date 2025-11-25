@@ -213,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           children: [
                             TextSpan(
-                              text: "Sign Up",
+                              text: "Go Sign Up",
                               style: GoogleFonts.poppins(
                                 color: const Color(0xFF2D2C60),
                                 fontWeight: FontWeight.bold,
@@ -223,7 +223,6 @@ class _LoginPageState extends State<LoginPage> {
                           ],
                         ),
                       ),
-
                     ),
                   ],
                 ),
