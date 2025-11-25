@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -23,46 +22,34 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
 
-  /// ✅ Request camera permission (Android + iOS)
-  Future<bool> _requestCameraPermission() async {
-    final status = await Permission.camera.request();
-
-    if (status.isGranted) {
-      return true;
-    } else if (status.isDenied) {
-      _showSnackBar("Camera permission denied");
-    } else if (status.isPermanentlyDenied) {
-      _showSnackBar("Camera permission permanently denied. Please enable it from Settings.");
-      await openAppSettings();
-    }
-    return false;
-  }
-
-  /// ✅ Capture photo
+  /// ✅ Capture Photo
   Future<void> _takePhoto() async {
     try {
-      final hasPermission = await _requestCameraPermission();
-      if (!hasPermission) return;
+      // 🔹 Request Camera Permission
+      var status = await Permission.camera.request();
 
-      // 🔹 Pick image using camera
-      final pickedFile = await _picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
-        imageQuality: 80,
-      );
+      if (status.isDenied) {
+        _showSnackBar("Camera permission denied");
+        return;
+      } else if (status.isPermanentlyDenied) {
+        _showSnackBar("Camera permission permanently denied. Please enable from Settings.");
+        await openAppSettings();
+        return;
+      }
 
+      // 🔹 Open Camera
+      final pickedFile = await _picker.pickImage(source: ImageSource.camera);
       if (pickedFile == null) {
         _showSnackBar("No image captured");
         return;
       }
 
-      if (!mounted) return;
       setState(() {
         _image = File(pickedFile.path);
       });
 
+      // 🔹 Load Saved Data
       final prefs = await SharedPreferences.getInstance();
-
       await _uploadImage(
         userId: prefs.getString('userid'),
         empCode: prefs.getString('empCode'),
@@ -78,7 +65,7 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
     }
   }
 
-  /// ✅ Upload image with watermark
+  /// ✅ Upload Image with Watermark
   Future<void> _uploadImage({
     String? userId,
     String? empCode,
@@ -97,25 +84,28 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
     setState(() => _isLoading = true);
 
     try {
+      // 🔹 Read & Process Image
       final bytes = await _image!.readAsBytes();
-      final originalImage = img.decodeImage(bytes);
+      img.Image? originalImage = img.decodeImage(bytes);
       if (originalImage == null) throw Exception("Failed to process image");
 
-      final watermarkText = [
+      // 🔹 Add Watermark
+      List<String> lines = [
         savedAddress ?? '',
         "Lat: ${savedLatitude ?? ''}, Lng: ${savedLongitude ?? ''}",
         "Time: ${DateFormat('dd-MMM-yyyy HH:mm:ss').format(DateTime.now())}",
       ];
 
-      final font = img.arial24;
+      final font = img.arial24; // Default font
       final textColor = img.ColorRgb8(255, 0, 0);
-      final lineHeight = 40;
-      final startY = originalImage.height - (watermarkText.length * lineHeight) - 20;
 
-      for (int i = 0; i < watermarkText.length; i++) {
+      int lineHeight = 40;
+      int startY = originalImage.height - (lines.length * lineHeight) - 20;
+
+      for (int i = 0; i < lines.length; i++) {
         img.drawString(
           originalImage,
-          watermarkText[i],
+          lines[i],
           x: 20,
           y: startY + (i * lineHeight),
           font: font,
@@ -123,17 +113,17 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
         );
       }
 
+      // 🔹 Resize + Compress
       final resized = img.copyResize(originalImage, width: 800);
-      final modifiedBytes = img.encodeJpg(resized, quality: 70);
-      final uploadImagePhoto = base64Encode(modifiedBytes);
+      List<int> modifiedBytes = img.encodeJpg(resized, quality: 70);
+      String uploadImagePhoto = base64Encode(modifiedBytes);
 
-      final tempFile = File(
-        '${Directory.systemTemp.path}/attend_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
+      // 🔹 Save for Preview
+      final tempFile = File('${Directory.systemTemp.path}/attend_${DateTime.now().millisecondsSinceEpoch}.jpg');
       await tempFile.writeAsBytes(modifiedBytes);
-
       setState(() => _image = tempFile);
 
+      // 🔹 Prepare Data
       final attendanceModel = AttendanceModel(
         empID: userId,
         empCode: empCode,
@@ -150,6 +140,7 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
         punchType: savedPunchType,
       );
 
+      // 🔹 Call API
       final response = await _apiService.uploadAttendance(attendanceModel);
       _showSnackBar(response['Message'] ?? "Upload finished");
 
@@ -162,10 +153,11 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
     } catch (e) {
       _showSnackBar("Upload failed: $e");
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
+  /// ✅ SnackBar Helper
   void _showSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -173,9 +165,6 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Mark Attendance'),
@@ -184,21 +173,21 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
+          Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   "Capture Attendance Photo",
-                  style: TextStyle(
-                    fontSize: screenWidth * 0.055,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: screenHeight * 0.02),
+                SizedBox(height: 20),
+
+                // 🔹 Preview Area
                 _image == null
                     ? Container(
-                  height: screenHeight * 0.25,
+                  height: 200,
                   width: double.infinity,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
@@ -210,40 +199,39 @@ class _CameraAttendancePageState extends State<CameraAttendancePage> {
                 )
                     : ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    _image!,
-                    height: screenHeight * 0.3,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.file(_image!, height: 250, fit: BoxFit.cover),
                 ),
-                SizedBox(height: screenHeight * 0.03),
-                ElevatedButton.icon(
-                  icon: Icon(Icons.camera_alt),
-                  label: Text("Take Photo", style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: screenWidth * 0.08,
-                      vertical: screenHeight * 0.02,
+                SizedBox(height: 20),
+
+                // 🔹 Button
+                Center(
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.camera_alt),
+                    label: Text(
+                      "Take Photo",
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                    onPressed: _isLoading ? null : _takePhoto,
                   ),
-                  onPressed: _isLoading ? null : _takePhoto,
                 ),
               ],
             ),
           ),
+
+          // 🔹 Loader
           if (_isLoading)
             Container(
               color: Colors.black45,
               child: Center(
-                child: Platform.isIOS
-                    ? CupertinoActivityIndicator(radius: 18)
-                    : CircularProgressIndicator(color: Colors.white),
+                child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
         ],

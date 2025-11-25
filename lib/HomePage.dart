@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:dd_hrms/MarkAttendancePage.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'LoginPage.dart';
@@ -39,6 +37,7 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     final savedUserName = prefs.getString('name');
     if (!mounted) return;
+
     setState(() => userName = savedUserName ?? 'User');
   }
 
@@ -101,127 +100,73 @@ class _HomePageState extends State<HomePage> {
       empOutTime = 'N/A';
       isLoading = false;
     });
-    _showMessage(message, isError: true);
+    _showSnackBar(message, isError: true);
   }
 
-  void _showMessage(String message, {bool isError = false}) {
-    if (Platform.isIOS) {
-      showCupertinoDialog(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: Text(isError ? "Error" : "Info"),
-          content: Text(message),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text("OK"),
-              onPressed: () => Navigator.pop(context),
-            )
-          ],
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.white)),
-          backgroundColor: isError ? Colors.redAccent : Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: isError ? Colors.redAccent : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showLogoutDialog() {
-    if (Platform.isIOS) {
-      showCupertinoDialog(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text("Logout"),
-          content: const Text("Are you sure you want to logout?"),
-          actions: [
-            CupertinoDialogAction(
-              isDestructiveAction: true,
-              child: const Text("Yes"),
-              onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.clear();
-                if (!mounted) return;
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
-                      (route) => false,
-                );
-              },
-            ),
-            CupertinoDialogAction(
-              child: const Text("No"),
-              onPressed: () => Navigator.pop(context),
-            ),
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Row(
+          children: const [
+            Icon(Icons.logout, color: Colors.redAccent),
+            SizedBox(width: 10),
+            Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
-      );
-    } else {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: Row(
-            children: const [
-              Icon(Icons.logout, color: Colors.redAccent),
-              SizedBox(width: 10),
-              Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-            ],
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+              if (!mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (route) => false,
+              );
+            },
+            child: const Text('Yes', style: TextStyle(color: Colors.red)),
           ),
-          content: const Text('Are you sure you want to logout?'),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.clear();
-                if (!mounted) return;
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
-                      (route) => false,
-                );
-              },
-              child: const Text('Yes', style: TextStyle(color: Colors.red)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('No'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  Widget _buildLoader() {
-    if (Platform.isIOS) {
-      return const CupertinoActivityIndicator(radius: 16);
-    }
-    return const CircularProgressIndicator();
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('No'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context).size;
-
     return Scaffold(
       body: SafeArea(
         child: Stack(
           children: [
             Column(
               children: [
-                _buildHeader(mq),
-                _buildAttendanceRow(mq),
-                _buildServicesGrid(mq),
+                _buildHeader(),
+                _buildAttendanceRow(),
+                _buildServicesGrid(),
               ],
             ),
             if (isLoading)
               Container(
                 color: Colors.white.withOpacity(0.6),
-                child: Center(child: _buildLoader()),
+                child: const Center(child: CircularProgressIndicator()),
               ),
           ],
         ),
@@ -229,17 +174,15 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHeader(Size mq) {
+  Widget _buildHeader() {
     return Container(
-      height: mq.height * 0.3,
+      height: 260,
       decoration: BoxDecoration(
         image: DecorationImage(
           image: const AssetImage('assets/images/background.jpg'),
           fit: BoxFit.cover,
           colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.5),
-            BlendMode.darken,
-          ),
+              Colors.black.withOpacity(0.5), BlendMode.darken),
         ),
       ),
       child: Column(
@@ -269,8 +212,8 @@ class _HomePageState extends State<HomePage> {
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           Container(
-            width: mq.width * 0.25,
-            height: mq.width * 0.25,
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey, width: 2),
@@ -278,9 +221,10 @@ class _HomePageState extends State<HomePage> {
             clipBehavior: Clip.antiAlias,
             child: Image.asset(
               'assets/images/logo.jpg',
-              fit: BoxFit.contain,
+              fit: BoxFit.contain, // ✅ पूरी image दिखाई देगी, कटेगी नहीं
             ),
           ),
+
           const SizedBox(height: 10),
           const Text('DD-HRMS',
               style: TextStyle(
@@ -292,9 +236,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildAttendanceRow(Size mq) {
+  Widget _buildAttendanceRow() {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: mq.width * 0.04, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -315,7 +259,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildAttendanceTile(IconData icon, String label, String time) {
+  Widget _buildAttendanceTile(IconData icon,String label,String time) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
@@ -331,12 +275,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildServicesGrid(Size mq) {
+  Widget _buildServicesGrid() {
     return Expanded(
       child: GridView.builder(
         padding: const EdgeInsets.all(10),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: mq.width > 600 ? 3 : 2, // ✅ tablets support
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
           childAspectRatio: 0.9,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
@@ -386,4 +330,5 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
 }
